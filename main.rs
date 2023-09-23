@@ -24,8 +24,10 @@ struct MyEguiApp {
     row: Vec<String>, // useful when we define grid size
     is_first: bool, // first room gotta make an opening for water and etc.
     is_water_on: bool, // should the water flow. triggered with start button
-    water_source: Vec<i32>, //coordinates of the point the water flows from
-    texty: String,
+    water_source: Vec<i32>, // coordinates of the point the water flows from
+    texty: String, // string containing the entire grid
+    frames_in_tick: i32, // water gotta move slowly so i need ticks
+    frames_passed: i32,
 }
 
 impl MyEguiApp {
@@ -38,7 +40,9 @@ impl MyEguiApp {
             is_first: true, // first room gotta make an opening for water and etc.
             is_water_on: false, // should the water flow. triggered with start button
             water_source: vec![], //coordinates of the point the water flows from
-            texty: "noniue".to_string(),
+            texty: "noniue".to_string(), // string containing the entire grid
+            frames_in_tick: 500, // water gotta move slowly so i need ticks
+            frames_passed: 0,
         }
     }
 }
@@ -48,7 +52,8 @@ impl eframe::App for MyEguiApp {
         // update function fires each frame
         self.max_grid_x = 70; 
         self.max_grid_y = 45; 
-        self.water_source = vec![];
+        self.frames_in_tick = 500;
+        //self.water_source = vec![];
 
         if self.grid.len() == 0 {
         for y in 0..self.max_grid_y {
@@ -67,6 +72,25 @@ impl eframe::App for MyEguiApp {
             self.max_grid_x, 
             self.max_grid_y
         );
+
+        if self.is_water_on {
+            println!("{}", self.frames_passed);
+            if self.frames_passed >= self.frames_in_tick {
+                //println!("{}", self.water_source.len());
+                self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize] = "0".to_string();
+                println!("{}", self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize]);
+    
+                self.grid = moveWater(
+                    self.grid.clone(),
+                    self.max_grid_x, 
+                    self.max_grid_y
+                );
+                self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
+                self.frames_passed = 0;
+            } else {
+                self.frames_passed = self.frames_passed + 1;
+            }
+        }
         
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label(egui::RichText::new(format!("{}", self.texty)).monospace());
@@ -83,7 +107,9 @@ impl eframe::App for MyEguiApp {
                 self.is_first = false;
             }
             if ui.button("start").clicked() {
+                //println!("{}", findSource(&self.grid, self.max_grid_x, self.max_grid_y).len());
                 self.water_source = findSource(&self.grid, self.max_grid_x, self.max_grid_y);
+                self.is_water_on = true;
                 /*for y in 0..self.max_grid_y {
                     for x in 0..self.max_grid_x {
                         self.row.insert(x as usize, "#".to_string());
