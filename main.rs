@@ -41,7 +41,7 @@ impl MyEguiApp {
             is_water_on: false, // should the water flow. triggered with start button
             water_source: vec![], //coordinates of the point the water flows from
             texty: "noniue".to_string(), // string containing the entire grid
-            frames_in_tick: 500, // water gotta move slowly so i need ticks
+            frames_in_tick: 0, // water gotta move slowly so i need ticks
             frames_passed: 0,
         }
     }
@@ -52,7 +52,7 @@ impl eframe::App for MyEguiApp {
         // update function fires each frame
         self.max_grid_x = 70; 
         self.max_grid_y = 45; 
-        self.frames_in_tick = 500;
+        self.frames_in_tick = 25;
         //self.water_source = vec![];
 
         if self.grid.len() == 0 {
@@ -74,7 +74,6 @@ impl eframe::App for MyEguiApp {
         );
 
         if self.is_water_on {
-            println!("{}", self.frames_passed);
             if self.frames_passed >= self.frames_in_tick {
                 //println!("{}", self.water_source.len());
                 self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize] = "0".to_string();
@@ -120,6 +119,7 @@ impl eframe::App for MyEguiApp {
                 //println!("here {}", &mut self.grid[0][0]); //renderGrid(&self.grid, self.max_grid_x, self.max_grid_y));
             }
         });
+        ctx.request_repaint();
    }
 }
 
@@ -282,7 +282,7 @@ fn renderGrid(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Stri
 }
 
 fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Vec<Vec<String>> {
-    for y_normal in 0..max_grid_y {
+    for y_normal in 0..max_grid_y { // cycle goes down to up
         let y = max_grid_y - y_normal - 1; // wanna make the cycle go down to up, without -1 it doesnt work.
         for x in 0..max_grid_x {
             if grid[y as usize][x as usize] == "(".to_string() {
@@ -295,14 +295,14 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                 }
             }
         }
-        for x_normal in 0..max_grid_x {
+        for x_normal in 0..max_grid_x { // cycle goes right to left
             let x = max_grid_x - x_normal - 1; // wanna make the cycle go right to left, without -1 it doesnt work.
             if isWater(&grid[y as usize][x as usize]) { // check if the cell is water.
                 if grid[(y + 1) as usize][x as usize] == "_".to_string() { // if cell below empty, move down.
                     grid[y as usize][x as usize] = "_".to_string();
                     grid[(y + 1) as usize][x as usize] = "0".to_string();
-                } else if isWall(&grid[(y + 1) as usize][x as usize]) { // if cell below is wall.     
-                    if isWall(&grid[y as usize][(x - 1) as usize]) || // if walls around.
+                } else if isWall(&grid[(y + 1) as usize][x as usize]) || grid[(y + 1) as usize][x as usize] == "0".to_string() { // if cell below is wall.     
+                    if isWall(&grid[y as usize][(x - 1) as usize]) || // if wall to the side
                        isWall(&grid[y as usize][(x + 1) as usize]) {
                         grid[y as usize][x as usize] = "0".to_string(); // turn water into "still" water,
                                                                         // "(" and ")" represent "flowing" water.
@@ -314,21 +314,21 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                             grid[y as usize][x as usize] = "X".to_string();
                         }
                     } else {
-                    let mut flow_dir = flowDirection(
-                        &grid.clone(),
-                        max_grid_x, 
-                        max_grid_y,
-                        x,
-                        y
-                    );
-                        if grid[(y - 1) as usize][x as usize] == "0".to_string() ||
-                           (grid[y as usize][x as usize] == "0".to_string() &&
-                           grid[y as usize][(x - 1) as usize] != "0".to_string() &&
-                           grid[y as usize][(x + 1) as usize] != "0".to_string()) {
-                            grid[y as usize][x as usize] = "_".to_string();
-                            
+                        let mut flow_dir = flowDirection(
+                            &grid.clone(),
+                            max_grid_x, 
+                            max_grid_y,
+                            x,
+                            y
+                        );
+                        if grid[(y - 1) as usize][x as usize] == "0".to_string()  || // if cell above is still water
+                           (grid[y as usize][x as usize]      == "0".to_string()  && // or if target cell is still water
+                           grid[y as usize][(x - 1) as usize] != "0".to_string()  && // and there's no still water left and right to target cell
+                           grid[y as usize][(x + 1) as usize] != "0".to_string()) ||
+                           isRowBelowWater(&grid.clone(), x, y) {
+                            grid[y as usize][x as usize] = "_".to_string();          // turns target cell into empty space
                             if flow_dir == 1 {
-                                grid[y as usize][(x + 1) as usize] = ")".to_string();
+                                grid[y as usize][(x + 1) as usize] = ")".to_string(); // and make the water flow randomly
                             }
                             if flow_dir == -1 {
                                 grid[y as usize][(x - 1) as usize] = "(".to_string();
@@ -336,6 +336,11 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         }
                     }
                 }
+                /*if isRowBelowWater(&grid.clone(), x, y) { // this one checks if water should fill next layer
+                    grid[y as usize][x as usize] = "_".to_string();
+                    grid[y as usize][(x + 1) as usize] = ")".to_string();
+                    grid[y as usize][(x - 1) as usize] = "(".to_string();
+                }*/
             }
             if grid[y as usize][x as usize] == "M".to_string() {
                 grid[y as usize][x as usize] = "(".to_string();
@@ -607,6 +612,19 @@ fn isWater(value: &String) -> bool {
 
 fn isWall(value: &String) -> bool {
     if value == &"#".to_string() || value == &"B".to_string() || value == &"E".to_string() {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> bool { // checks if the row below is all still water. 
+    println!("b {}", grid[(target_y + 1) as usize][target_x as usize]);
+    println!("r {}", grid[(target_y + 1) as usize][(target_x + 1) as usize]);
+    println!("l {}", grid[(target_y + 1) as usize][(target_x - 1) as usize]);
+    if grid[(target_y + 1) as usize][target_x as usize]       == "0".to_string() &&
+       grid[(target_y + 1) as usize][(target_x + 1) as usize] == "0".to_string() && // checks if cell below and 2 cells to the side of the cell below are still water
+       grid[(target_y + 1) as usize][(target_x - 1) as usize] == "0".to_string() {
         return true;
     } else {
         return false;
