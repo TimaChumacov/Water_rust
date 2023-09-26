@@ -52,7 +52,7 @@ impl eframe::App for MyEguiApp {
         // update function fires each frame
         self.max_grid_x = 70; 
         self.max_grid_y = 45; 
-        self.frames_in_tick = 25;
+        self.frames_in_tick = 5;
         //self.water_source = vec![];
 
         if self.grid.len() == 0 {
@@ -76,7 +76,6 @@ impl eframe::App for MyEguiApp {
         if self.is_water_on {
             if self.frames_passed >= self.frames_in_tick {
                 //println!("{}", self.water_source.len());
-                self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize] = "0".to_string();
                 //println!("{}", self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize]);
     
                 self.grid = moveWater(
@@ -84,6 +83,7 @@ impl eframe::App for MyEguiApp {
                     self.max_grid_x, 
                     self.max_grid_y
                 );
+                self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize] = "0".to_string();
                 self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
                 self.frames_passed = 0;
             } else {
@@ -298,21 +298,23 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
         for x_normal in 0..max_grid_x { // cycle goes right to left
             let x = max_grid_x - x_normal - 1; // wanna make the cycle go right to left, without -1 it doesnt work.
             if isWater(&grid[y as usize][x as usize]) { // check if the cell is water.
+                if grid[y as usize][x as usize] == ")".to_string() {    // check if the cell is
+                    if grid[y as usize][(x + 1) as usize] == "_".to_string() { // moving water, if so, we
+                        grid[y as usize][x as usize] = "_".to_string();            // move it further.
+                        grid[y as usize][(x + 1) as usize] = ")".to_string();
+                    } else if grid[y as usize][(x + 1) as usize] == "0".to_string() {
+                        grid[y as usize][x as usize] = "X".to_string();
+                    }
+                }
                 if grid[(y + 1) as usize][x as usize] == "_".to_string() { // if cell below empty, move down.
                     grid[y as usize][x as usize] = "_".to_string();
                     grid[(y + 1) as usize][x as usize] = "0".to_string();
-                } else if isWall(&grid[(y + 1) as usize][x as usize]) { // if cell below is wall.     
+                }
+                if isWall(&grid[(y + 1) as usize][x as usize]) || grid[(y + 1) as usize][x as usize] == "0".to_string() { // if cell below is wall.     
                     if isWall(&grid[y as usize][(x - 1) as usize]) || // if wall to the side
                        isWall(&grid[y as usize][(x + 1) as usize]) {
                         grid[y as usize][x as usize] = "0".to_string(); // turn water into "still" water,
                                                                         // "(" and ")" represent "flowing" water.
-                    } else if grid[y as usize][x as usize] == ")".to_string() {    // check if the cell is
-                        if grid[y as usize][(x + 1) as usize] == "_".to_string() { // moving water, if so, we
-                            grid[y as usize][x as usize] = "_".to_string();            // move it further.
-                            grid[y as usize][(x + 1) as usize] = ")".to_string();
-                        } else if grid[y as usize][(x + 1) as usize] == "0".to_string() {
-                            grid[y as usize][x as usize] = "X".to_string();
-                        }
                     } else {
                         let mut flow_dir = flowDirection(
                             &grid.clone(),
@@ -321,9 +323,9 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                             x,
                             y
                         );
-                        if grid[(y - 1) as usize][x as usize] == "0".to_string()  || // if cell above is still water
-                           (grid[y as usize][x as usize]      == "0".to_string()  && // or if target cell is still water
-                           grid[y as usize][(x - 1) as usize] != "0".to_string()  && // and there's no still water left and right to target cell
+                        if grid[(y - 1) as usize][x as usize] == "0".to_string()  && // if cell above is still water
+                           grid[y as usize][x as usize]      == "0".to_string()   && // or if target cell is still water
+                           (grid[y as usize][(x - 1) as usize] != "0".to_string() || // and there's no still water left and right to target cell
                            grid[y as usize][(x + 1) as usize] != "0".to_string()) {
                             grid[y as usize][x as usize] = "_".to_string();          // turns target cell into empty space
                             if flow_dir == 1 {
@@ -336,7 +338,17 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                     }
                 }
                 if isRowBelowWater(&grid.clone(), x, y) { // this one checks if water should fill next layer
-                    if (grid[y as usize][x as usize] == "(".to_string() ||
+                    print!("{}", grid[(y - 1) as usize][(x - 1) as usize]);
+                    print!("{}", grid[(y - 1) as usize][x as usize]);
+                    println!("{}", grid[(y - 1) as usize][(x + 1) as usize]);
+                    print!("{}", grid[y as usize][(x - 1) as usize]);
+                    print!("{}", grid[y as usize][x as usize]);
+                    println!("{}", grid[y as usize][(x + 1) as usize]);
+                    print!("{}", grid[(y + 1) as usize][(x - 1) as usize]);
+                    print!("{}", grid[(y + 1) as usize][x as usize]);
+                    println!("{}", grid[(y + 1) as usize][(x + 1) as usize]);
+                    println!("---------------------");
+                    /*if (grid[y as usize][x as usize] == "(".to_string() ||
                        grid[y as usize][x as usize] == ")".to_string()) &&
                        (isWall(&grid[y as usize][(x - 1) as usize]) || // if wall to the side
                        isWall(&grid[y as usize][(x + 1) as usize]) ||
@@ -345,7 +357,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         
                         grid[y as usize][x as usize] = "0".to_string(); // turn water into "still" water,
                                                                             // "(" and ")" represent "flowing" water.
-                    } else if grid[y as usize][x as usize] == "0".to_string() {
+                    } else*/ if grid[y as usize][x as usize] == "0".to_string() {
                         let mut flow_dir = flowDirection(
                             &grid.clone(),
                             max_grid_x, 
@@ -639,36 +651,41 @@ fn isWall(value: &String) -> bool {
     }
 }
 
-fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> bool { // checks if the row below is all still water. 
-    /*println!("b {}", grid[(target_y + 1) as usize][target_x as usize]);
-    println!("r {}", grid[(target_y + 1) as usize][(target_x + 1) as usize]);
-    println!("l {}", grid[(target_y + 1) as usize][(target_x - 1) as usize]);*/
-    /*if grid[(target_y + 1) as usize][target_x as usize]       == "0".to_string() &&
-       grid[(target_y + 1) as usize][(target_x + 1) as usize] == "0".to_string() && // checks if cell below and 2 cells to the side of the cell below are still water
-       grid[(target_y + 1) as usize][(target_x - 1) as usize] == "0".to_string() {
-        return true;
-    } else {
-        return false;
-    }*/
-    let mut isRowFull = true;
+fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> bool {
+    // this function takes a cell, and looks if the layer of water below is full. It indicates if the cell can flow on top of the existing layer.
+    // the function also checks for instances when water is technicaly on top of full water layer but e.g. is near a wall or sandwiched between other layers.
+    // so it's not just "is the layer below complete?" but also "should the cell flow and form a new layer?"
+    let mut isRowFull = true; // return value. It's assumed to be true at first but can changed coz of the loops below
     let mut counter_left = 0;
     let mut counter_right = 0;
+                                                                              // this "if" is reversed, so everything that PASSES the check gets false is kicked out.
+    if grid[(target_y - 1) as usize][target_x as usize] != "0".to_string() || // if cell above isn't still (only water from the vertical "stream" won't be stopped here),
+       grid[target_y as usize][target_x as usize] != "0".to_string() ||       // or if target cell isn't still ( the "(" and ")" are stopped here),
+       (isWater(&grid[target_y as usize][(target_x - 1) as usize]) &&         // or if there's water on both sides,
+       isWater(&grid[target_y as usize][(target_x + 1) as usize])) ||
+       (isWall(&grid[target_y as usize][(target_x - 1) as usize]) ||          // or if there's a wall on any side,
+       isWall(&grid[target_y as usize][(target_x + 1) as usize])) {
+        isRowFull = false;                                                    // then get a false and get outta here.
+    }
+    // these two loops check each side below the target cell. 
+    // "isRowFull" is already true, so the loops check if it should actually be false
+    // if it finds something that isn't water or a wall, it returns false
     loop {
         counter_left += 1;
-        if grid[target_y as usize][(target_x - counter_left) as usize] == "0".to_string() {
+        if grid[(target_y + 1) as usize][(target_x - counter_left) as usize] == "0".to_string() {
             continue;
         }
-        if isWall(&grid[target_y as usize][(target_x - counter_left) as usize]) {
+        if isWall(&grid[(target_y + 1) as usize][(target_x - counter_left) as usize]) && counter_left > 1 {
             break;
         }
         isRowFull = false;
     }
     loop {
         counter_right += 1;
-        if grid[target_y as usize][(target_x + counter_right) as usize] == "0".to_string() {
+        if grid[(target_y + 1) as usize][(target_x + counter_right) as usize] == "0".to_string() {
             continue;
         }
-        if isWall(&grid[target_y as usize][(target_x + counter_right) as usize]) {
+        if isWall(&grid[(target_y + 1) as usize][(target_x + counter_right) as usize]) && counter_right > 1 {
             break;
         }
         isRowFull = false;
