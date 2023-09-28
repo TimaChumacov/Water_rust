@@ -64,9 +64,7 @@ impl eframe::App for MyEguiApp {
             self.grid.insert(y as usize, self.row.clone());
             self.row.clear();
         }
-        self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
-        //self.texty = "test".to_string();
-        }
+        self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y); 
         self.is_first = checkIfFirst( //so coz it updates i gotta check 
             self.grid.clone(),        //all this stuff each frame
             self.max_grid_x, 
@@ -121,6 +119,7 @@ impl eframe::App for MyEguiApp {
         });
         ctx.request_repaint();
    }
+}
 }
 
 fn checkIfFirst(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> bool {
@@ -297,7 +296,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
         }
         for x_normal in 0..max_grid_x { // cycle goes right to left
             let x = max_grid_x - x_normal - 1; // wanna make the cycle go right to left, without -1 it doesnt work.
-            if isWater(&grid[y as usize][x as usize]) { // check if the cell is water.
+            if isWater(&grid[y as usize][x as usize]) && ShouldProcess(&grid.clone(), x, y) { // check if the cell is water.
                 if grid[y as usize][x as usize] == ")".to_string() {    // check if the cell is
                     if grid[y as usize][(x + 1) as usize] == "_".to_string() { // moving water, if so, we
                         grid[y as usize][x as usize] = "_".to_string();            // move it further.
@@ -672,6 +671,9 @@ fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> boo
     // if it finds something that isn't water or a wall, it returns false
     loop {
         counter_left += 1;
+        if counter_left > 100 {
+            break;
+        }
         if grid[(target_y + 1) as usize][(target_x - counter_left) as usize] == "0".to_string() {
             continue;
         }
@@ -682,6 +684,9 @@ fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> boo
     }
     loop {
         counter_right += 1;
+        if counter_right > 100 {
+            break;
+        }
         if grid[(target_y + 1) as usize][(target_x + counter_right) as usize] == "0".to_string() {
             continue;
         }
@@ -691,4 +696,14 @@ fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> boo
         isRowFull = false;
     }
     return isRowFull;
+}
+
+fn ShouldProcess(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> bool {
+    if (grid[(target_y - 1) as usize][(target_x - 1) as usize] == "0".to_string() ||
+    grid[(target_y - 1) as usize][(target_x + 1) as usize] == "0".to_string()) && 
+    grid[(target_y - 1) as usize][target_x as usize] == "0".to_string() {
+        return false;
+    } else {
+        return true;
+    }
 }
