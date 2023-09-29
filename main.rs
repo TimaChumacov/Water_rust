@@ -64,6 +64,9 @@ impl eframe::App for MyEguiApp {
             self.grid.insert(y as usize, self.row.clone());
             self.row.clear();
         }
+        self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
+        //self.texty = "test".to_string();
+        }
         self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y); 
         self.is_first = checkIfFirst( //so coz it updates i gotta check 
             self.grid.clone(),        //all this stuff each frame
@@ -119,7 +122,6 @@ impl eframe::App for MyEguiApp {
         });
         ctx.request_repaint();
    }
-}
 }
 
 fn checkIfFirst(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> bool {
@@ -336,7 +338,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         }
                     }
                 }
-                if isRowBelowWater(&grid.clone(), x, y) { // this one checks if water should fill next layer
+                /*if isRowBelowWater(&grid.clone(), max_grid_x, x, y) { // this one checks if water should fill next layer
                     print!("{}", grid[(y - 1) as usize][(x - 1) as usize]);
                     print!("{}", grid[(y - 1) as usize][x as usize]);
                     println!("{}", grid[(y - 1) as usize][(x + 1) as usize]);
@@ -356,7 +358,9 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         
                         grid[y as usize][x as usize] = "0".to_string(); // turn water into "still" water,
                                                                             // "(" and ")" represent "flowing" water.
-                    } else*/ if grid[y as usize][x as usize] == "0".to_string() {
+                    } else*/ 
+                    grid = Solidify(grid.clone(), x, y);
+                    if grid[y as usize][x as usize] == "0".to_string() {
                         let mut flow_dir = flowDirection(
                             &grid.clone(),
                             max_grid_x, 
@@ -372,7 +376,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                             grid[y as usize][(x - 1) as usize] = "(".to_string();
                         }
                     }
-                }
+                }*/
             }
             if grid[y as usize][x as usize] == "M".to_string() {
                 grid[y as usize][x as usize] = "(".to_string();
@@ -643,14 +647,14 @@ fn isWater(value: &String) -> bool {
 }
 
 fn isWall(value: &String) -> bool {
-    if value == &"#".to_string() || value == &"B".to_string() || value == &"E".to_string() {
+    if value == &"#".to_string() || value == &"B".to_string() || value == &"E".to_string() || value == &"🌁".to_string() {
         return true;
     } else {
         return false;
     }
 }
 
-fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> bool {
+fn isRowBelowWater(grid: &Vec<Vec<String>>, max_grid_x: i32, target_x: i32, target_y: i32) -> bool {
     // this function takes a cell, and looks if the layer of water below is full. It indicates if the cell can flow on top of the existing layer.
     // the function also checks for instances when water is technicaly on top of full water layer but e.g. is near a wall or sandwiched between other layers.
     // so it's not just "is the layer below complete?" but also "should the cell flow and form a new layer?"
@@ -671,7 +675,7 @@ fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> boo
     // if it finds something that isn't water or a wall, it returns false
     loop {
         counter_left += 1;
-        if counter_left > 100 {
+        if (target_x - counter_left) <= 1 {
             break;
         }
         if grid[(target_y + 1) as usize][(target_x - counter_left) as usize] == "0".to_string() {
@@ -684,7 +688,7 @@ fn isRowBelowWater(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> boo
     }
     loop {
         counter_right += 1;
-        if counter_right > 100 {
+        if (target_x + counter_right) >= (max_grid_x - 1) {
             break;
         }
         if grid[(target_y + 1) as usize][(target_x + counter_right) as usize] == "0".to_string() {
@@ -706,4 +710,29 @@ fn ShouldProcess(grid: &Vec<Vec<String>>, target_x: i32, target_y: i32) -> bool 
     } else {
         return true;
     }
+}
+
+fn Solidify(mut grid: Vec<Vec<String>>, target_x: i32, target_y: i32) -> Vec<Vec<String>> { 
+// Funcrion turns water that's already all layed out and won't be movin anywhere into stuff that looks fancy but registers as a wall. So I call the function solidify
+// Function gonna be triggered when a cell returns true from "isRowBelowWater" function
+// It's gonna look interesting but also should boost performance 💧💧💧
+println!("fired!!!!");
+    let mut counter_left = 0;
+    let mut counter_right = 0;
+    grid[(target_y + 1) as usize][target_x as usize] = "🌁".to_string();
+    loop {
+        counter_left += 1;
+        if isWall(&grid[(target_y + 1) as usize][(target_x - counter_left) as usize]) {
+            break;
+        }
+        grid[(target_y + 1) as usize][(target_x - counter_left) as usize] = "🌁".to_string();
+    }
+    loop {
+        counter_right += 1;
+        if isWall(&grid[(target_y + 1) as usize][(target_x + counter_right) as usize]) {
+            break;
+        }
+        grid[(target_y + 1) as usize][(target_x + counter_right) as usize] = "🌁".to_string();
+    }
+    return grid;
 }
