@@ -292,7 +292,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                     grid[y as usize][(x - 1) as usize] = "(".to_string();
                 }
                 if isWall(&grid[y as usize][(x - 1) as usize]) || grid[y as usize][(x - 1) as usize] == "0".to_string() {
-                    grid[y as usize][x as usize] = "0".to_string();
+                    grid[y as usize][x as usize] = "W".to_string();
                 }
             }
         }
@@ -304,19 +304,32 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         grid[y as usize][x as usize] = "_".to_string();            // move it further.
                         grid[y as usize][(x + 1) as usize] = ")".to_string();
                     } else if grid[y as usize][(x + 1) as usize] == "0".to_string() {
-                        grid[y as usize][x as usize] = "X".to_string();
+                        grid[y as usize][x as usize] = "W".to_string();
                     }
                 }
                 if grid[(y + 1) as usize][x as usize] == "_".to_string() { // if cell below empty, move down.
                     grid[y as usize][x as usize] = "_".to_string();
                     grid[(y + 1) as usize][x as usize] = "0".to_string();
                 }
-                if isWall(&grid[(y + 1) as usize][x as usize]) || grid[(y + 1) as usize][x as usize] == "0".to_string() { // if cell below is wall.     
-                    if isWall(&grid[y as usize][(x - 1) as usize]) || // if wall to the side
+                if isWall(&grid[(y + 1) as usize][x as usize]) { // if cell below is wall.     
+                    if isWall(&grid[y as usize][(x - 1) as usize]) && // if wall to both sides
                        isWall(&grid[y as usize][(x + 1) as usize]) {
-                        grid[y as usize][x as usize] = "0".to_string(); // turn water into "still" water,
-                                                                        // "(" and ")" represent "flowing" water.
-                    } else {
+                        if grid[(y - 1) as usize][x as usize] == "0".to_string() || grid[y as usize][x as usize] == "0".to_string() { // if cell above is 0
+                            grid[y as usize][x as usize] = "W".to_string(); // turn water into "still" water
+                        }
+                    } else if !(isWall(&grid[y as usize][(x - 1) as usize]) && // if walls aren't to both sides
+                                isWall(&grid[y as usize][(x + 1) as usize])) {
+                        if grid[(y - 1) as usize][x as usize] != "0".to_string() &&
+                           (isWall(&grid[y as usize][(x - 1) as usize]) ||
+                           isWall(&grid[y as usize][(x + 1) as usize])) {
+                            if grid[y as usize][x as usize] == "0".to_string() {
+                                grid[y as usize][x as usize] = "W".to_string(); 
+                            } else if grid[y as usize][x as usize] == ")".to_string()
+                            {
+                                grid[y as usize][x as usize] = "0".to_string(); 
+                            }
+                        }
+                    
                         let mut flow_dir = flowDirection(
                             &grid.clone(),
                             max_grid_x, 
@@ -647,7 +660,7 @@ fn isWater(value: &String) -> bool {
 }
 
 fn isWall(value: &String) -> bool {
-    if value == &"#".to_string() || value == &"B".to_string() || value == &"E".to_string() || value == &"🌁".to_string() {
+    if value == &"#".to_string() || value == &"B".to_string() || value == &"E".to_string() || value == &"W".to_string() {
         return true;
     } else {
         return false;
