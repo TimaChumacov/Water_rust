@@ -108,6 +108,9 @@ impl eframe::App for MyEguiApp {
             if ui.button("water ON/OFF").clicked() {
                 //println!("{}", findSource(&self.grid, self.max_grid_x, self.max_grid_y).len());
                 self.water_source = findSource(&self.grid, self.max_grid_x, self.max_grid_y);
+                //if self.water_source == vec![] {
+                    self.grid = RenderWall(self.grid.clone(), self.max_grid_x, self.max_grid_y);
+                //}
                 self.is_water_on = !self.is_water_on;
                 /*for y in 0..self.max_grid_y {
                     for x in 0..self.max_grid_x {
@@ -270,24 +273,7 @@ fn renderGrid(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Stri
     let mut whole_table: String = "".to_string();
     for y in 0..max_grid_y {
         for x in 0..max_grid_x {
-            if isWall(&grid[y as usize][x as usize]) && grid[y as usize][x as usize] != "W".to_string() {
-                if 1 < y && y < (max_grid_y - 1) && 1 < x && x < (max_grid_x - 1) && (
-                   grid[(y - 1) as usize][(x - 1) as usize] == "_".to_string() ||
-                   grid[(y - 1) as usize][(x    ) as usize] == "_".to_string() ||
-                   grid[(y - 1) as usize][(x + 1) as usize] == "_".to_string() ||
-                   grid[(y    ) as usize][(x - 1) as usize] == "_".to_string() ||
-                   grid[(y    ) as usize][(x + 1) as usize] == "_".to_string() ||
-                   grid[(y + 1) as usize][(x - 1) as usize] == "_".to_string() ||
-                   grid[(y + 1) as usize][(x    ) as usize] == "_".to_string() ||
-                   grid[(y + 1) as usize][(x + 1) as usize] == "_".to_string() ){
-                    whole_table = whole_table + &"#".to_string();
-                } else {
-                    whole_table = whole_table + &" ".to_string();
-                }
-            } else {
-                whole_table = whole_table + &grid[y as usize][x  as usize];
-                
-            }
+            whole_table = whole_table + &grid[y as usize][x  as usize];
             if grid[y as usize][x  as usize] == "".to_string()
             {
                 whole_table = whole_table + &"U".to_string();
@@ -298,8 +284,41 @@ fn renderGrid(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Stri
     return whole_table;
 }
 
-fn shouldRenderWall(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, target_x: i32, target_y: i32) -> bool {
-    return true;
+fn RenderWall(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Vec<Vec<String>> {
+    for y in 0..max_grid_y {
+        for x in 0..max_grid_x {
+            if grid[y as usize][x as usize] == "_" {
+                grid[y as usize][x as usize] = "_".to_string();
+            } else if y > 1 && x > 1 &&
+                      grid[(y - 1) as usize][(x - 1) as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if y > 1 &&
+                      grid[(y - 1) as usize][x as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if y > 1 && x < (max_grid_x - 1) &&
+                      grid[(y - 1) as usize][(x + 1) as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if x > 1 &&
+                      grid[y as usize][(x - 1) as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if x < (max_grid_x - 1) &&
+                      grid[y as usize][(x + 1) as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if y < (max_grid_y - 1) && x > 1 &&
+                      grid[(y + 1) as usize][(x - 1) as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if y < (max_grid_y - 1) &&
+                      grid[(y + 1) as usize][x as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else if y < (max_grid_y - 1) && x < (max_grid_x - 1) &&
+                      grid[(y + 1) as usize][(x + 1) as usize] == "_".to_string() {
+                grid[y as usize][x as usize] = "#".to_string();
+            } else {
+                grid[y as usize][x as usize] = " ".to_string();
+            }
+        }
+    }
+    return grid;
 }
 
 fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Vec<Vec<String>> {
