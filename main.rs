@@ -40,7 +40,7 @@ impl MyEguiApp {
             is_first: true, // first room gotta make an opening for water and etc.
             is_water_on: false, // should the water flow. triggered with start button
             water_source: vec![], //coordinates of the point the water flows from
-            texty: "noniue".to_string(), // string containing the entire grid
+            texty: "".to_string(), // string containing the entire grid
             frames_in_tick: 0, // water gotta move slowly so i need ticks
             frames_passed: 0,
         }
@@ -74,23 +74,22 @@ impl eframe::App for MyEguiApp {
             self.max_grid_y
         );
 
-        if self.is_water_on {
             if self.frames_passed >= self.frames_in_tick {
                 //println!("{}", self.water_source.len());
                 //println!("{}", self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize]);
-    
                 self.grid = moveWater(
                     self.grid.clone(),
                     self.max_grid_x, 
                     self.max_grid_y
                 );
-                self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize] = "0".to_string();
+                if self.is_water_on {
+                    self.grid[(self.water_source[1] + 1) as usize][self.water_source[0] as usize] = "0".to_string();
+                }
                 self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
                 self.frames_passed = 0;
             } else {
                 self.frames_passed = self.frames_passed + 1;
             }
-        }
         
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label(egui::RichText::new(format!("{}", self.texty)).monospace());
@@ -106,10 +105,10 @@ impl eframe::App for MyEguiApp {
                 self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
                 self.is_first = false;
             }
-            if ui.button("start").clicked() {
+            if ui.button("water ON/OFF").clicked() {
                 //println!("{}", findSource(&self.grid, self.max_grid_x, self.max_grid_y).len());
                 self.water_source = findSource(&self.grid, self.max_grid_x, self.max_grid_y);
-                self.is_water_on = true;
+                self.is_water_on = !self.is_water_on;
                 /*for y in 0..self.max_grid_y {
                     for x in 0..self.max_grid_x {
                         self.row.insert(x as usize, "#".to_string());
@@ -271,7 +270,24 @@ fn renderGrid(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Stri
     let mut whole_table: String = "".to_string();
     for y in 0..max_grid_y {
         for x in 0..max_grid_x {
-            whole_table = whole_table + &grid[y as usize][x  as usize];
+            if isWall(&grid[y as usize][x as usize]) && grid[y as usize][x as usize] != "W".to_string() {
+                if 1 < y && y < (max_grid_y - 1) && 1 < x && x < (max_grid_x - 1) && (
+                   grid[(y - 1) as usize][(x - 1) as usize] == "_".to_string() ||
+                   grid[(y - 1) as usize][(x    ) as usize] == "_".to_string() ||
+                   grid[(y - 1) as usize][(x + 1) as usize] == "_".to_string() ||
+                   grid[(y    ) as usize][(x - 1) as usize] == "_".to_string() ||
+                   grid[(y    ) as usize][(x + 1) as usize] == "_".to_string() ||
+                   grid[(y + 1) as usize][(x - 1) as usize] == "_".to_string() ||
+                   grid[(y + 1) as usize][(x    ) as usize] == "_".to_string() ||
+                   grid[(y + 1) as usize][(x + 1) as usize] == "_".to_string() ){
+                    whole_table = whole_table + &"#".to_string();
+                } else {
+                    whole_table = whole_table + &" ".to_string();
+                }
+            } else {
+                whole_table = whole_table + &grid[y as usize][x  as usize];
+                
+            }
             if grid[y as usize][x  as usize] == "".to_string()
             {
                 whole_table = whole_table + &"U".to_string();
@@ -280,6 +296,10 @@ fn renderGrid(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Stri
         whole_table = whole_table + "\n";
     }
     return whole_table;
+}
+
+fn shouldRenderWall(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, target_x: i32, target_y: i32) -> bool {
+    return true;
 }
 
 fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Vec<Vec<String>> {
@@ -533,7 +553,7 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
     }
     if door_cells.len() > 1 {
         let id = rand::thread_rng().gen_range(0..door_cells.len());
-        println!("id {id}, y {}, x {}", door_cells[id][0], door_cells[id][1]);
+        //println!("id {id}, y {}, x {}", door_cells[id][0], door_cells[id][1]);
                 let mut j = 1;
                 loop {
                     if grid[(door_cells[id][0] + door_cells[id][2] * j) as usize][(door_cells[id][1] + door_cells[id][3] * j) as usize] != "_".to_string() {
