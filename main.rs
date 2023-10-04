@@ -95,35 +95,52 @@ impl eframe::App for MyEguiApp {
         
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label(egui::RichText::new(format!("{}", self.texty)).monospace());
-            if ui.button("generate layout").clicked() {
-                //self.texty = format!("{}1", self.texty);
-                self.grid = room(
-                    self.grid.clone(),
-                    self.max_grid_x, 
-                    self.max_grid_y,
-                    self.is_first
-                );
-                print!("{}", renderGrid(&self.grid, self.max_grid_x, self.max_grid_y));
-                self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
-                self.is_first = false;
-            }
-            if ui.button("water ON/OFF").clicked() {
-                //println!("{}", findSource(&self.grid, self.max_grid_x, self.max_grid_y).len());
-                self.water_source = findSource(&self.grid, self.max_grid_x, self.max_grid_y);
-                if !self.walls_rendered {
-                    self.grid = RenderWall(self.grid.clone(), self.max_grid_x, self.max_grid_y);
-                    self.walls_rendered = true;
+            ui.horizontal(|ui| {
+                if ui.button("generate layout").clicked() {
+                    //self.texty = format!("{}1", self.texty);
+                    self.grid = room(
+                        self.grid.clone(),
+                        self.max_grid_x, 
+                        self.max_grid_y,
+                        self.is_first
+                    );
+                    print!("{}", renderGrid(&self.grid, self.max_grid_x, self.max_grid_y));
+                    self.texty = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y);
+                    self.is_first = false;
                 }
-                self.is_water_on = !self.is_water_on;
-                /*for y in 0..self.max_grid_y {
-                    for x in 0..self.max_grid_x {
-                        self.row.insert(x as usize, "#".to_string());
+                if ui.button("water ON/OFF").clicked() {
+                    //println!("{}", findSource(&self.grid, self.max_grid_x, self.max_grid_y).len());
+                    self.water_source = findSource(&self.grid, self.max_grid_x, self.max_grid_y);
+                    if !self.walls_rendered {
+                        self.grid = RenderWall(self.grid.clone(), self.max_grid_x, self.max_grid_y);
+                        self.walls_rendered = true;
                     }
-                    self.grid.insert(y as usize, self.row.clone());
-                    self.row.clear();
-                }*/
-                //println!("here {}", &mut self.grid[0][0]); //renderGrid(&self.grid, self.max_grid_x, self.max_grid_y));
-            }
+                    self.is_water_on = !self.is_water_on;
+                    /*for y in 0..self.max_grid_y {
+                        for x in 0..self.max_grid_x {
+                            self.row.insert(x as usize, "#".to_string());
+                        }
+                        self.grid.insert(y as usize, self.row.clone());
+                        self.row.clear();
+                    }*/
+                    //println!("here {}", &mut self.grid[0][0]); //renderGrid(&self.grid, self.max_grid_x, self.max_grid_y));
+                }
+                if ui.button("reset layout").clicked() {
+                    self.is_water_on = false;
+                    self.walls_rendered = false;
+                    self.grid.clear();
+                    for y in 0..self.max_grid_y {
+                        for x in 0..self.max_grid_x {
+                            println!("y {y} x {x},");
+                            self.row.insert(x as usize, "#".to_string());
+                        }
+                        self.grid.insert(y as usize, self.row.clone());
+                        self.row.clear();
+                    }
+                }
+                ui.label(egui::RichText::new("👇 expand the window! 👇").monospace());
+            });
+            ui.label(egui::RichText::new("\nHi! This rust apps lets you generate interconnected rooms and then see how they are filled up with water. The physics of this \"water\" is questionable and it behaves more like sand. \"generate layout\" button can be pressed multiple times and generates a room each time. If there's little space left, the creation of a room may take a while. \"water ON/OFF\" button makes the layout prettier and starts the waterflow. You can press again to to stop the water. You can't generate more rooms after pouring water. \"reset layout\" button resets everything.").monospace());
         });
         ctx.request_repaint();
    }
@@ -161,13 +178,13 @@ fn main() {
         icon_data: None,
         initial_window_pos: None,
         initial_window_size: Option::from(
-          Vec2::new(618 as f32, 700 as f32)
+          Vec2::new(530 as f32, 680 as f32)
         ),
         min_window_size: Option::from(
-            Vec2::new(618 as f32, 700 as f32)
+            Vec2::new(530 as f32, 680 as f32)
           ),
         max_window_size: Option::from(
-            Vec2::new(618 as f32, 700 as f32)
+            Vec2::new(530 as f32, 820 as f32)
           ),
         resizable: true,
         transparent: true,
@@ -752,3 +769,8 @@ println!("fired!!!!");
     }
     return grid;
 }
+
+// KNOWN BUGS:
+// - rooms can generate diagonally realy closely but without a path to each other
+// - if "^" is in the roof of a room without a tunnel the top layer won't fill up
+// - by spamming ON/OFF water is pretty much sand. It piles up and can even block tunnels to other rooms
