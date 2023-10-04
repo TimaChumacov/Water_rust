@@ -24,6 +24,7 @@ struct MyEguiApp {
     row: Vec<String>, // useful when we define grid size
     is_first: bool, // first room gotta make an opening for water and etc.
     is_water_on: bool, // should the water flow. triggered with start button
+    walls_rendered: bool,
     water_source: Vec<i32>, // coordinates of the point the water flows from
     texty: String, // string containing the entire grid
     frames_in_tick: i32, // water gotta move slowly so i need ticks
@@ -39,6 +40,7 @@ impl MyEguiApp {
             row: vec![], // useful when we define grid size
             is_first: true, // first room gotta make an opening for water and etc.
             is_water_on: false, // should the water flow. triggered with start button
+            walls_rendered: false,
             water_source: vec![], //coordinates of the point the water flows from
             texty: "".to_string(), // string containing the entire grid
             frames_in_tick: 0, // water gotta move slowly so i need ticks
@@ -108,9 +110,10 @@ impl eframe::App for MyEguiApp {
             if ui.button("water ON/OFF").clicked() {
                 //println!("{}", findSource(&self.grid, self.max_grid_x, self.max_grid_y).len());
                 self.water_source = findSource(&self.grid, self.max_grid_x, self.max_grid_y);
-                //if self.water_source == vec![] {
+                if !self.walls_rendered {
                     self.grid = RenderWall(self.grid.clone(), self.max_grid_x, self.max_grid_y);
-                //}
+                    self.walls_rendered = true;
+                }
                 self.is_water_on = !self.is_water_on;
                 /*for y in 0..self.max_grid_y {
                     for x in 0..self.max_grid_x {
@@ -289,6 +292,8 @@ fn RenderWall(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> V
         for x in 0..max_grid_x {
             if grid[y as usize][x as usize] == "_" {
                 grid[y as usize][x as usize] = "_".to_string();
+            } else if grid[y as usize][x as usize] == "^" {
+                grid[y as usize][x as usize] = "^".to_string();
             } else if y > 1 && x > 1 &&
                       grid[(y - 1) as usize][(x - 1) as usize] == "_".to_string() {
                 grid[y as usize][x as usize] = "#".to_string();
@@ -337,18 +342,19 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
         }
         for x_normal in 0..max_grid_x { // cycle goes right to left
             let x = max_grid_x - x_normal - 1; // wanna make the cycle go right to left, without -1 it doesnt work.
-            if isWater(&grid[y as usize][x as usize]) && ShouldProcess(&grid.clone(), x, y) { // check if the cell is water.
+            if isWater(&grid[y as usize][x as usize]) { // check if the cell is water.
+                if grid[(y + 1) as usize][x as usize] == "_".to_string() { // if cell below empty, move down.
+                    grid[y as usize][x as usize] = "_".to_string();
+                    grid[(y + 1) as usize][x as usize] = "0".to_string();
+                }
                 if grid[y as usize][x as usize] == ")".to_string() {    // check if the cell is
                     if grid[y as usize][(x + 1) as usize] == "_".to_string() { // moving water, if so, we
                         grid[y as usize][x as usize] = "_".to_string();            // move it further.
                         grid[y as usize][(x + 1) as usize] = ")".to_string();
-                    } else if grid[y as usize][(x + 1) as usize] == "0".to_string() {
+                    } 
+                    if isWall(&grid[y as usize][(x + 1) as usize]) || grid[y as usize][(x + 1) as usize] == "0".to_string() {
                         grid[y as usize][x as usize] = "W".to_string();
                     }
-                }
-                if grid[(y + 1) as usize][x as usize] == "_".to_string() { // if cell below empty, move down.
-                    grid[y as usize][x as usize] = "_".to_string();
-                    grid[(y + 1) as usize][x as usize] = "0".to_string();
                 }
                 if isWall(&grid[(y + 1) as usize][x as usize]) { // if cell below is wall.     
                     if isWall(&grid[y as usize][(x - 1) as usize]) && // if wall to both sides
@@ -363,10 +369,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                            isWall(&grid[y as usize][(x + 1) as usize])) {
                             if grid[y as usize][x as usize] == "0".to_string() {
                                 grid[y as usize][x as usize] = "W".to_string(); 
-                            } else if grid[y as usize][x as usize] == ")".to_string()
-                            {
-                                grid[y as usize][x as usize] = "0".to_string(); 
-                            }
+                            } 
                         }
                     
                         let mut flow_dir = flowDirection(
@@ -390,45 +393,6 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         }
                     }
                 }
-                /*if isRowBelowWater(&grid.clone(), max_grid_x, x, y) { // this one checks if water should fill next layer
-                    print!("{}", grid[(y - 1) as usize][(x - 1) as usize]);
-                    print!("{}", grid[(y - 1) as usize][x as usize]);
-                    println!("{}", grid[(y - 1) as usize][(x + 1) as usize]);
-                    print!("{}", grid[y as usize][(x - 1) as usize]);
-                    print!("{}", grid[y as usize][x as usize]);
-                    println!("{}", grid[y as usize][(x + 1) as usize]);
-                    print!("{}", grid[(y + 1) as usize][(x - 1) as usize]);
-                    print!("{}", grid[(y + 1) as usize][x as usize]);
-                    println!("{}", grid[(y + 1) as usize][(x + 1) as usize]);
-                    println!("---------------------");
-                    /*if (grid[y as usize][x as usize] == "(".to_string() ||
-                       grid[y as usize][x as usize] == ")".to_string()) &&
-                       (isWall(&grid[y as usize][(x - 1) as usize]) || // if wall to the side
-                       isWall(&grid[y as usize][(x + 1) as usize]) ||
-                       grid[y as usize][(x - 1) as usize] == "0".to_string() ||
-                       grid[y as usize][(x + 1) as usize] == "0".to_string()) {
-                        
-                        grid[y as usize][x as usize] = "0".to_string(); // turn water into "still" water,
-                                                                            // "(" and ")" represent "flowing" water.
-                    } else*/ 
-                    grid = Solidify(grid.clone(), x, y);
-                    if grid[y as usize][x as usize] == "0".to_string() {
-                        let mut flow_dir = flowDirection(
-                            &grid.clone(),
-                            max_grid_x, 
-                            max_grid_y,
-                            x,
-                            y
-                        );
-                        grid[y as usize][x as usize] = "_".to_string();
-                        if flow_dir == 1 {
-                            grid[y as usize][(x + 1) as usize] = ")".to_string(); // and make the water flow randomly
-                        }
-                        if flow_dir == -1 {
-                            grid[y as usize][(x - 1) as usize] = "(".to_string();
-                        }
-                    }
-                }*/
             }
             if grid[y as usize][x as usize] == "M".to_string() {
                 grid[y as usize][x as usize] = "(".to_string();
