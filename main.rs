@@ -322,8 +322,7 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                             x,
                             y
                         );
-                        if grid[(y - 1) as usize][x as usize] == "0".to_string()  && // if cell above is "0"
-                           grid[y as usize][x as usize]      == "0".to_string()   && // and if target cell is "0"
+                        if grid[y as usize][x as usize]      == "0".to_string()   && // and if target cell is "0"
                            (grid[y as usize][(x - 1) as usize] != "0".to_string() || // and there's no still water left and right to target cell
                            grid[y as usize][(x + 1) as usize] != "0".to_string()) {
                             grid[y as usize][x as usize] = "_".to_string();          // turns target cell into "_"
@@ -346,26 +345,62 @@ fn flowDirection(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, targ
     // the function return a direction for water to flow, right is 1 and left is -1
     // option 1: if empty space to both sides of the flow point, the choose at random
     // option 2: if only one side is empty, then flow to that side
-   if grid[target_y as usize][(target_x + 1) as usize] == "_".to_string() && // checks for option 2
-      grid[target_y as usize][(target_x - 1) as usize] != "_".to_string() {
-        return 1;
-   } 
-   if grid[target_y as usize][(target_x + 1) as usize] != "_".to_string() { // checks for option 2
-        if grid[target_y as usize][(target_x - 1) as usize] == "_".to_string() {
-            return -1;
+    
+    if checkSide(grid, max_grid_x, target_x, target_y) != 0 {
+        return checkSide(grid, max_grid_x, target_x, target_y);
+    } else {
+        if grid[target_y as usize][(target_x + 1) as usize] == "_".to_string() && // checks for option 2
+            grid[target_y as usize][(target_x - 1) as usize] != "_".to_string() {
+                return 1;
         } 
-   }
-   let mut random_flow = rand::thread_rng().gen_range(0..=1); // option 1
-   if random_flow == 0 {
-        random_flow = -1;
-   } else {
-        random_flow = 1;
-   }
-   if grid[target_y as usize][(target_x + 1) as usize] == "0".to_string() &&
-      grid[target_y as usize][(target_x - 1) as usize] == "0".to_string() {
-        random_flow = 0;
-   }
-   return random_flow;
+        if grid[target_y as usize][(target_x + 1) as usize] != "_".to_string() { // checks for option 2
+                if grid[target_y as usize][(target_x - 1) as usize] == "_".to_string() {
+                    return -1;
+                } 
+        }
+        let mut random_flow = rand::thread_rng().gen_range(0..=1); // option 1
+        if random_flow == 0 {
+            random_flow = -1;
+        } else {
+            random_flow = 1;
+        }
+        if grid[target_y as usize][(target_x + 1) as usize] == "0".to_string() &&
+           grid[target_y as usize][(target_x - 1) as usize] == "0".to_string() {
+            random_flow = 0;
+        }
+        return random_flow;
+    }
+}
+
+fn checkSide(grid: &Vec<Vec<String>>, max_grid_x: i32, target_x: i32, target_y: i32) -> i32 {
+    let mut dir = 0;
+    let mut left = 0;
+    let mut right = 0;
+    loop {
+        left += 1;
+        if target_x - left < 0 {
+            break;
+        }
+        if isWall(&grid[target_y as usize][(target_x - left) as usize]) {
+            break;
+        }
+        if grid[(target_y + 1) as usize][(target_x - left) as usize] == "_".to_string() {
+            dir = -1;
+        }
+    }
+    loop {
+        right += 1;
+        if target_x + left > max_grid_x {
+            break;
+        }
+        if isWall(&grid[target_y as usize][(target_x + right) as usize]) {
+            break;
+        }
+        if grid[(target_y + 1) as usize][(target_x + right) as usize] == "_".to_string() {
+            dir = 1;
+        }
+    }
+    return dir;
 }
 
 
@@ -382,12 +417,12 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
         if room_count > 5 {
             println!("HEEEEEEEEEEEEEEEEEY YUBGLYUIB:OBLK");
         }
-        if 5 < (max_grid_x - 5 - room_count * 2) && 5 < max_grid_y - 5 - room_count - room_count * 5 && 
-               (1 + room_count * 5) <= (max_grid_y - y - 1 - (20 - room_count * 5)) && 0 <= (20 - room_count * 5) {
+        if 5 < (max_grid_x - 5 - room_count * 2) && 5 < max_grid_y - 5 - room_count - room_count * 4 && 
+               (1 + room_count * 5) <= (max_grid_y - y - 1 - (20 - room_count * 5)) && 0 <= (20 - room_count * 4) {
             x        = rand::thread_rng().gen_range(5..max_grid_x - 5 - room_count * 2); // random size, min 5 and max pretty much all the width/height
-            y        = rand::thread_rng().gen_range(5..max_grid_y - 5 - room_count * 5 - (20 - room_count * 5));
+            y        = rand::thread_rng().gen_range(5..max_grid_y - 5 - room_count * 5 - (20 - room_count * 4));
             offset_x = rand::thread_rng().gen_range(1..=(max_grid_x - x - 1)); // random offset, min 1 and max so that the room still fits into grid
-            offset_y = rand::thread_rng().gen_range((1 + room_count * 5)..=(max_grid_y - y - 1 - (20 - room_count * 5)));
+            offset_y = rand::thread_rng().gen_range((2 + room_count * 5)..=(max_grid_y - y - 1 - (20 - room_count * 4)));
             enough_space = true;
             for a in -1..x + 1 { //cycle that goes through all cells in the room plus 1 cell outline
                 for b in -1..y + 1 {
@@ -411,7 +446,7 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
         }
         println!{"is first: {is_first} enough: {enough_space}, and room {across_room}"};
         attempts += 1;
-        if attempts > 1500 { // don't want it to be endless so after 1000 attempts it's over and returns the same grid
+        if attempts > 5000 { // don't want it to be endless so after 1000 attempts it's over and returns the same grid
             return grid;
         }
     }
@@ -602,5 +637,4 @@ fn isWall(value: &String) -> bool {  // checks if the cell is water. "W" is here
 
 // KNOWN BUGS:
 // - rooms can generate diagonally realy closely but without a path to each other
-// - if "^" is in the roof of a room without a tunnel the top layer won't fill up
 // - by spamming ON/OFF water is pretty much sand. It piles up and can even block tunnels to other rooms
