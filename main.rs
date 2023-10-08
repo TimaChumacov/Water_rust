@@ -109,17 +109,24 @@ impl eframe::App for MyEguiApp {
             ui.horizontal(|ui| { // invisible container that aligns every element horizontally
                 if ui.button(egui::RichText::new(format!("{}", self.button_text)).monospace()).clicked() && self.can_generate { // generate layout button.
                                                                                         // works only if the water is off and enough space for a new room
-                    let new_grid: Vec<Vec<String>> = room(                                                               
-                        self.grid.clone(),
-                        self.max_grid_x, 
-                        self.max_grid_y,
-                        self.is_first,
-                        self.room_count
-                    );
-                    if self.grid == new_grid { // if they're the same then there's no space to generate a room 
-                        self.can_generate = false;
-                    } else { // if the new_grid is different (has a room) then the main grid variable steals the value
-                        self.grid = new_grid;
+                    loop { // because of a bug I made it a loop so If I catch it re-generates the room
+                        let new_grid: Vec<Vec<String>> = room(                                                               
+                            self.grid.clone(),
+                            self.max_grid_x, 
+                            self.max_grid_y,
+                            self.is_first,
+                            self.room_count
+                        );
+                        if new_grid[0][0] == "F".to_string() { // if there's "F" at (0; 0) then that's the mark for that bug and I re-generate
+                            continue;
+                        }
+                        if self.grid == new_grid { // if they're the same then there's no space to generate a room 
+                            self.can_generate = false;
+                            break;
+                        } else { // if the new_grid is different (has a room) then the main grid variable steals the value
+                            self.grid = new_grid;
+                            break;
+                        }
                     }
                     //print!("{}", renderGrid(&self.grid, self.max_grid_x, self.max_grid_y)); //debugging
                     self.grid_str = renderGrid(&self.grid, self.max_grid_x, self.max_grid_y); // updated string
@@ -152,7 +159,7 @@ impl eframe::App for MyEguiApp {
                 ui.label(egui::RichText::new("👇 expand the window! 👇").monospace()); // text label
             });
             // I'm really sorry but the string has to be that long. If I make newline in the editor it will also be in the string and mess up everything
-            ui.label("\nHi! This rust apps lets you generate interconnected rooms and then see how they are filled up with water. The physics of this \"water\" is questionable and it behaves more like sand. \"generate layout\" button can be pressed multiple times and it generates a room each time. If there's little space left, the creation of a room may take a while. \"water ON/OFF\" button makes the layout prettier and starts the waterflow. You can press again to to stop the water. You can't generate more rooms after pouring water. \"reset layout\" button resets everything.");
+            ui.label("\nHi! This rust apps lets you generate interconnected rooms and then see how they are filled up with water. \"generate layout\" button can be pressed multiple times and it generates a room each time. If there's little space left, the button will be disabled. \"water ON/OFF\" button makes the layout prettier and starts the waterflow. You can press again to to stop the water. You can't generate more rooms after pouring water. \"reset layout\" button resets everything.");
         });
         ctx.request_repaint(); // asks the window to update itself even if the user doesn't move the cursor, very important
    }
@@ -310,7 +317,10 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
                         if grid[(y - 1) as usize][x as usize] != "0".to_string() && // if there's no "0" above
                            (isWall(&grid[y as usize][(x - 1) as usize]) || // and if there's at least 1 wall to the side (it can't be 2 walls btw, it wouldn;t pass the check above)
                            isWall(&grid[y as usize][(x + 1) as usize])) {
-                            if grid[y as usize][x as usize] == "0".to_string() {// and if target cell is "0"
+                            if grid[y as usize][x as usize] == "0".to_string() && // and if target cell is "0"
+                             !(grid[(y - 1) as usize][x as usize] == "_".to_string() && // and if there's no "_" above that has walls to its sides
+                               grid[(y - 1) as usize][(x - 1) as usize] == "#".to_string() &&
+                               grid[(y - 1) as usize][(x + 1) as usize] == "#".to_string()) {
                                 grid[y as usize][x as usize] = "W".to_string(); // turn into "W"
                             } 
                         }
@@ -343,17 +353,18 @@ fn moveWater(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32) -> Ve
 
 fn flowDirection(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, target_x: i32, target_y: i32) -> i32 {
     // the function return a direction for water to flow, right is 1 and left is -1
-    // option 1: if empty space to both sides of the flow point, the choose at random
-    // option 2: if only one side is empty, then flow to that side
+    // option 1: if empty space to both sides of the flow point and the surface is flat, choose randomly
+    // option 2: if empty space to both sides of the flow point and the surface is uneven, choose the direction where the water would be able to fall deeper
+    // option 3: if only one side is empty, then flow to that side
     
-    if checkSide(grid, max_grid_x, target_x, target_y) != 0 {
-        return checkSide(grid, max_grid_x, target_x, target_y);
+    if checkSide(grid, max_grid_x, target_x, target_y) != 0 { // option 2. more about it in checkSide function. If it returns zero, then code goes to options 1 and 2
+        return checkSide(grid, max_grid_x, target_x, target_y); 
     } else {
-        if grid[target_y as usize][(target_x + 1) as usize] == "_".to_string() && // checks for option 2
+        if grid[target_y as usize][(target_x + 1) as usize] == "_".to_string() && // checks for option 3
             grid[target_y as usize][(target_x - 1) as usize] != "_".to_string() {
                 return 1;
         } 
-        if grid[target_y as usize][(target_x + 1) as usize] != "_".to_string() { // checks for option 2
+        if grid[target_y as usize][(target_x + 1) as usize] != "_".to_string() { // checks for option 3
                 if grid[target_y as usize][(target_x - 1) as usize] == "_".to_string() {
                     return -1;
                 } 
@@ -364,7 +375,7 @@ fn flowDirection(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, targ
         } else {
             random_flow = 1;
         }
-        if grid[target_y as usize][(target_x + 1) as usize] == "0".to_string() &&
+        if grid[target_y as usize][(target_x + 1) as usize] == "0".to_string() && // pretty much just for debugging, this never happens
            grid[target_y as usize][(target_x - 1) as usize] == "0".to_string() {
             random_flow = 0;
         }
@@ -373,10 +384,13 @@ fn flowDirection(grid: &Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, targ
 }
 
 fn checkSide(grid: &Vec<Vec<String>>, max_grid_x: i32, target_x: i32, target_y: i32) -> i32 {
+    // the function checks if there's a way to flow somewhere deeper on either side.
+    // returns: -1 = left; 1 = right; 0 = neither, the surface is flat or walls are really close;
     let mut dir = 0;
     let mut left = 0;
     let mut right = 0;
-    loop {
+    loop { 
+        // each cycle it checks a cell further left. If it's a wall, then nowhere to flow to. If not a wall, check the cell below from that point, if it's "_", then water can flow there.
         left += 1;
         if target_x - left < 0 {
             break;
@@ -389,6 +403,7 @@ fn checkSide(grid: &Vec<Vec<String>>, max_grid_x: i32, target_x: i32, target_y: 
         }
     }
     loop {
+        // works same as previous loop but goes right
         right += 1;
         if target_x + left > max_grid_x {
             break;
@@ -412,11 +427,8 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
     let mut enough_space: bool = false; // does the room fit?
     let mut across_room: bool = false; // there must be a room directly up, down, left or right
     let mut attempts: i32 = 0; // how many attempts to generate. if over 1500, then can't generate.
-    while !enough_space // keeps generating rooms until all conditions are met
+    loop  // keeps generating rooms until all conditions are met
     {
-        if room_count > 5 {
-            println!("HEEEEEEEEEEEEEEEEEY YUBGLYUIB:OBLK");
-        }
         if 5 < (max_grid_x - 5 - room_count * 2) && 5 < max_grid_y - 5 - room_count - room_count * 4 && 
                (1 + room_count * 5) <= (max_grid_y - y - 1 - (20 - room_count * 5)) && 0 <= (20 - room_count * 4) {
             x        = rand::thread_rng().gen_range(5..max_grid_x - 5 - room_count * 2); // random size, min 5 and max pretty much all the width/height
@@ -431,6 +443,7 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
                     }
                 }
             }
+            across_room = false;
             if !is_first { // first room doesn't have to make tunnels to other rooms
                 for a in 0..x { //cycle that goes through all cells in the room
                     for b in 0..y {
@@ -440,11 +453,16 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
                     }
                 }
             }
-            if !is_first && !across_room { // little workaround: even if there's enough space, but no room across, we'll say that there enough_space = false so the while cycle would keep going
-                enough_space = false;
+            if enough_space && across_room {
+                break;
             }
+            if is_first {
+                break;
+            }
+            /*if !is_first && !across_room { // little workaround: even if there's enough space, but no room across, we'll say that there enough_space = false so the while cycle would keep going
+                enough_space = false;
+            }*/
         }
-        println!{"is first: {is_first} enough: {enough_space}, and room {across_room}"};
         attempts += 1;
         if attempts > 5000 { // don't want it to be endless so after 1000 attempts it's over and returns the same grid
             return grid;
@@ -456,13 +474,11 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
         let mut b = 0;
         for b in 0..max_grid_y
         {
-            if (a > offset_x && a < x + offset_x - 1) || (b > offset_y && b < y + offset_y - 1) {
+            if (a >= offset_x && a < x + offset_x) || (b >= offset_y && b < y + offset_y) {
                 if grid[b as usize][a as usize] == "B".to_string()  // turs all "B" that are horizontal and vertical to the room into "E".
                 {                                                   // This'll be a sign for this room that it's across some other room                                        
                     grid[b as usize][a as usize] = "E".to_string();
-                } else if grid[b as usize][a as usize] != "_".to_string() && 
-                          grid[b as usize][a as usize] != "E".to_string() &&
-                          grid[b as usize][a as usize] != "^".to_string()
+                } else if grid[b as usize][a as usize] == "#".to_string()
                 {
                     grid[b as usize][a as usize] = "B".to_string(); // turs all "#" that are horizontal and vertical to the room into "B".
                 }                                                   // This'll be a sign for other rooms that there's a room across somewhere
@@ -479,6 +495,19 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
         for b in 0..y
         {
             grid[(b + offset_y) as usize][(a + offset_x) as usize] = "_".to_string(); // fills the new room with "_"
+        }
+    }
+    if is_first { // this one makes the upward tunnel for the first room and creates "^"
+        let id = rand::thread_rng().gen_range(1..x - 1); // the position of the tunnel is also random
+        let mut i = 1;
+        loop {
+            if offset_y - i != 0 {
+                grid[(offset_y - i) as usize][(offset_x + id) as usize] = "_".to_string();
+            } else {
+                grid[(offset_y - i) as usize][(offset_x + id) as usize] = "^".to_string();
+                return grid;
+            }
+            i = i + 1;
         }
     }
     for a in 0..x
@@ -502,29 +531,27 @@ fn room(mut grid: Vec<Vec<String>>, max_grid_x: i32, max_grid_y: i32, is_first: 
         }
     }
     if door_cells.len() > 1 { // randomly choses a cell that will make the tunnel
-        let id = rand::thread_rng().gen_range(0..door_cells.len());
-                let mut j = 1;
-                loop { // draws the tunnel until it hits "_" of another room
-                    if grid[(door_cells[id][0] + door_cells[id][2] * j) as usize][(door_cells[id][1] + door_cells[id][3] * j) as usize] != "_".to_string() {
-                        grid[(door_cells[id][0] + door_cells[id][2] * j) as usize][(door_cells[id][1] + door_cells[id][3] * j) as usize] = "_".to_string();
-                    } else {
-                        j = 1;
-                        break;
-                    }
-                    j = j + 1;
+        'outer: loop {
+            let id = rand::thread_rng().gen_range(0..door_cells.len());
+            let mut j = 1;
+            'inner: loop { 
+                if door_cells[id].len() < 1 { // there's a bug that makes door_cells empty and crashes the app, so I gotta check if door_cells is empty or not
+                    println!("caught it!");
+                    grid[0][0] = "F".to_string(); // F at (0; 0) is a sign that the generation was bugged and gotta be remade.
+                    return grid;
                 }
-    }
-    if is_first { // this one makes the upward tunnel for the first room and creates "^"
-        let id = rand::thread_rng().gen_range(1..x - 1); // the position of the tunnel is also random
-        let mut i = 1;
-        loop {
-            if offset_y - i != 0 {
-                grid[(offset_y - i) as usize][(offset_x + id) as usize] = "_".to_string();
-            } else {
-                grid[(offset_y - i) as usize][(offset_x + id) as usize] = "^".to_string();
-                break;
+                if door_cells[id][0] + door_cells[id][2] * j >= max_grid_y && door_cells[id][1] + door_cells[id][3] * j >= max_grid_x { // just to be sure it won't go out of bounds
+                    continue 'inner;
+                }
+                if grid[(door_cells[id][0] + door_cells[id][2] * j) as usize][(door_cells[id][1] + door_cells[id][3] * j) as usize] != "_".to_string() {
+                    // draws the tunnel until it hits "_" of another room
+                    grid[(door_cells[id][0] + door_cells[id][2] * j) as usize][(door_cells[id][1] + door_cells[id][3] * j) as usize] = "_".to_string();
+                } else {
+                    j = 1;
+                    break 'outer;
+                }
+                j = j + 1;
             }
-            i = i + 1;
         }
     }
     return grid;
@@ -584,22 +611,6 @@ fn canConnect(mut grid: Vec<Vec<String>>, mut x: i32, mut y: i32) -> Vec<i32> {
                 continue;
             }
         }
-        /*if (y + 1) < 35 && grid[(y + 1) as usize][x as usize] == "E".to_string() {
-            let mut down = y + 1;
-            loop {
-                if grid[down as usize][x as usize] == "_".to_string() {
-                    if path_direction == vec![0, 0] {
-                        path_direction[1] = 1;
-                    }
-                    break;
-                }
-                if down > 36 {
-                    break;
-                }
-                down = down + 1;
-                continue;
-            }
-        }*/
     }
     return path_direction;
 }
@@ -637,4 +648,4 @@ fn isWall(value: &String) -> bool {  // checks if the cell is water. "W" is here
 
 // KNOWN BUGS:
 // - rooms can generate diagonally realy closely but without a path to each other
-// - by spamming ON/OFF water is pretty much sand. It piles up and can even block tunnels to other rooms
+// - by spamming ON/OFF water can sometimes pile up like sand. Happens only in very specific corners.
