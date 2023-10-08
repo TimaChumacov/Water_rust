@@ -1,4 +1,4 @@
-//cd Documents/rust/water
+#![windows_subsystem = "windows"]
 use std::{
     io,
     io::{stdout, Write},
