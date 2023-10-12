@@ -1,11 +1,25 @@
 use rand::Rng;
 
+
 struct DoorCell {
     pub y: usize,
     pub x: usize,
     pub direction_y: i32,
     pub direction_x: i32,
 }
+
+
+struct ByRoomAdjusting {
+    pub min_y_size: usize,
+    pub min_x_size: usize,  
+    pub max_y_size: usize,
+    pub max_x_size: usize,
+    pub min_y_offset: usize,
+    pub min_x_offset: usize,
+    pub max_y_offset: usize,
+    pub max_x_offset: usize,
+}
+
 
 pub fn room(mut grid: Vec<Vec<String>>, max_grid_x: usize, max_grid_y: usize, room_count: usize) -> Vec<Vec<String>> {
     let is_first = room_count == 0;
@@ -17,16 +31,32 @@ pub fn room(mut grid: Vec<Vec<String>>, max_grid_x: usize, max_grid_y: usize, ro
     let mut attempts: i32 = 0; // how many attempts to generate. if over 1500, then can't generate.
     loop  // keeps generating rooms until all conditions are met
     {
-
         // TODO: These conditions are buggy, they need to be replaced // Sviat
         // let cond1 = (max_grid_x - 5 - room_count * 2) > 5;
         // let cond2 = max_grid_y - 5 - room_count - room_count * 4 > 5;
         // let cond3 = (1 + room_count * 5) <= (max_grid_y - y - 1 - (20 - room_count * 5));
+
+
+        /// I want rooms to generate up to down, since the app shines best when there's lot's of space to flow beneath
+        /// when room_count is low => min_offset is minimal, but max_offset is much reduced (so room ends up at top the top)
+        /// when room_count is higher => min_offset gets bigger, but max_offset is unreduced (so room ends up at the bottom)
         if room_count <= 5 {
-            x = rand::thread_rng().gen_range(5..max_grid_x - 5 - room_count * 2); // random size, min 5 and max pretty much all the width/height
-            y = rand::thread_rng().gen_range(5..max_grid_y - 5 - room_count * 5 - (20 - room_count * 4));
-            offset_x = rand::thread_rng().gen_range(1..=(max_grid_x - x - 1)); // random offset, min 1 and max so that the room still fits into grid
-            offset_y = rand::thread_rng().gen_range((2 + room_count * 5)..=(max_grid_y - y - 1 - (20 - room_count * 4)));
+            let mut new_room = ByRoomAdjusting {
+                min_y_size: 5,  
+                min_x_size: 5,
+                max_x_size: max_grid_x - 5 - room_count * 2,
+                max_y_size: max_grid_y - 5 - room_count * 5 - (20 - room_count * 4),
+                min_y_offset: 2 + room_count * 5,
+                min_x_offset: 1,
+                max_y_offset: 0,
+                max_x_offset: 0,
+            };
+            y = rand::thread_rng().gen_range(new_room.min_y_size..new_room.max_y_size);
+            x = rand::thread_rng().gen_range(new_room.min_x_size..new_room.max_x_size);
+            new_room.max_y_offset = max_grid_y - y - 1 - (20 - room_count * 4);
+            new_room.max_x_offset = max_grid_x - x - 1;
+            offset_y = rand::thread_rng().gen_range(new_room.min_y_offset..=new_room.max_y_offset);
+            offset_x = rand::thread_rng().gen_range(new_room.min_x_offset..=new_room.max_x_offset);
             enough_space = true;
             for a in 0..x + 2 { //cycle that goes through all cells in the room plus 1 cell outline
                 for b in 0..y + 2 {
@@ -51,36 +81,33 @@ pub fn room(mut grid: Vec<Vec<String>>, max_grid_x: usize, max_grid_y: usize, ro
             if is_first {
                 break;
             }
-            /*if !is_first && !across_room { // little workaround: even if there's enough space, but no room across, we'll say that there enough_space = false so the while cycle would keep going
-                enough_space = false;
-            }*/
         }
         attempts += 1;
         if attempts > 5000 { // don't want it to be endless so after 1000 attempts it's over and returns the same grid
             return grid;
         }
     }
-    for a in 0..max_grid_x //cycle that goes through all cells in the grid
+    for room_x in 0..max_grid_x //cycle that goes through all cells in the grid
     {
-        for b in 0..max_grid_y
+        for room_y in 0..max_grid_y
         {
-            if (a >= offset_x && a < x + offset_x) || (b >= offset_y && b < y + offset_y) {
-                if grid[b][a] == "B".to_string()  // turs all "B" that are horizontal and vertical to the room into "E".
+            if (room_x >= offset_x && room_x < x + offset_x) || (room_y >= offset_y && room_y < y + offset_y) {
+                if grid[room_y][room_x] == "B".to_string()  // turs all "B" that are horizontal and vertical to the room into "E".
                 {                                                   // This'll be a sign for this room that it's across some other room
-                    grid[b][a] = "E".to_string();
-                } else if grid[b][a] == "#".to_string()
+                    grid[room_y][room_x] = "E".to_string();
+                } else if grid[room_y][room_x] == "#".to_string()
                 {
-                    grid[b][a] = "B".to_string(); // turs all "#" that are horizontal and vertical to the room into "B".
+                    grid[room_y][room_x] = "B".to_string(); // turs all "#" that are horizontal and vertical to the room into "B".
                 }                                                   // This'll be a sign for other rooms that there's a room across somewhere
             }
         }
     }
     let mut door_cells: Vec<DoorCell> = vec![]; // cells that can make a tunnel to a room across. Later only one of them will be chosen.
-    for a in 0..x
+    for room_x in 0..x
     {
-        for b in 0..y
+        for room_y in 0..y
         {
-            grid[b + offset_y][a + offset_x] = "_".to_string(); // fills the new room with "_"
+            grid[room_y + offset_y][room_x + offset_x] = "_".to_string(); // fills the new room with "_"
         }
     }
     if is_first { // this one makes the upward tunnel for the first room and creates "^"
@@ -156,11 +183,13 @@ pub fn room(mut grid: Vec<Vec<String>>, max_grid_x: usize, max_grid_y: usize, ro
     return grid;
 }
 
+
 fn can_connect(grid: Vec<Vec<String>>, x: usize, y: usize) -> Vec<i32> {
     // returns a 2d Vector that points in which direction to build the tunnel
     let mut path_direction: Vec<i32> = vec![];
     path_direction.insert(0, 0);
     path_direction.insert(1, 0);
+
 
     // checks every direction, if there's "E", return thet direction
     if grid[y][x] == "_".to_string() {
